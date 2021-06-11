@@ -90,10 +90,13 @@ describe('TODO Application', () => {
             });
         });
 
-        it('should required message for add empty task', async () => {
+        it('should required message for add empty task name', async () => {
             render(<App {...initialState} />);
             addTask('');
-            expect(await screen.findByText(/required!/i)).toBeInTheDocument();
+
+            await waitFor(() => {
+                expect(screen.getByText(/required!/i)).toBeInTheDocument();
+            });
         });
 
         it('should error message for add exists task', async () => {
@@ -108,15 +111,65 @@ describe('TODO Application', () => {
         });
     });
 
-    it.todo('✅ приложение рендерится');
+    describe('correctly render list', () => {
+        it('should create a new list and make it active', async () => {
+            const listSecondName = faker.lorem.words();
+            const taskForFirstList = faker.lorem.words();
+            const state = {
+                ...initialState,
+                tasks: [{ id: 1, listId: 1, text: taskForFirstList, completed: false, touched: Date.now() }],
+            };
+            render(<App {...state} />);
+            addList(listSecondName);
 
-    it.todo('✅ добавляются/отмечаются/удаляются задчи в primary лист');
-    it.todo('✅ отображается ошибка при добавление пустого текста при добавлении таска');
-    it.todo('✅ отображается ошибка при одинакого названия таска');
+            const list = await screen.findByRole('button', { name: listSecondName });
+            expect(list).toBeInTheDocument();
+            expect(screen.getByText('Tasks list is empty')).toBeInTheDocument();
+        });
 
-    it.todo('добавляеется и удаляется новый лист');
-    it.todo('отображается ошибка обязательности заполнения поля при создании нового листа');
-    it.todo('отображается ошибка при добавлении одинакого названия листа');
-    it.todo('возможность добавлять удалять задачи в новом листе');
-    it.todo('состояния задач сохраняются между переключениями листов');
+        it('should remove list', async () => {
+            const list = faker.lorem.words();
+            render(<App {...initialState} />);
+            addList(list);
+
+            expect(await screen.findByText(list)).toBeVisible();
+            userEvent.click(screen.getByRole('button', { name: /remove list/i }));
+
+            await waitFor(() => {
+                expect(screen.queryByText(list)).toBeNull();
+            });
+        });
+
+        it('should task states persist between lists switching', async () => {
+            const [taskForFirstList, taskForSecondList] = [faker.lorem.words(), faker.lorem.words()];
+            const state = {
+                ...initialState,
+                currentListId: 2,
+                lists: [
+                    { id: 1, name: 'primary', removable: false },
+                    { id: 2, name: 'second', removable: true },
+                ],
+                tasks: [
+                    { id: 1, listId: 1, text: taskForFirstList, completed: false, touched: Date.now() },
+                    { id: 2, listId: 2, text: taskForSecondList, completed: false, touched: Date.now() },
+                ],
+            };
+            render(<App {...state} />);
+
+            expect(await screen.findByText(taskForSecondList)).toBeInTheDocument();
+            userEvent.click(screen.getByRole('button', { name: /primary/i }));
+            expect(await screen.findByText(taskForFirstList)).toBeInTheDocument();
+        });
+
+        it('should error message for add exists list', async () => {
+            const list = faker.lorem.words();
+            render(<App {...initialState} />);
+            addList(list);
+
+            await waitFor(() => {
+                addList(list);
+                expect(screen.getByText(/already exists/i)).toBeInTheDocument();
+            });
+        });
+    });
 });
