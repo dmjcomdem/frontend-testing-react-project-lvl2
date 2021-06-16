@@ -8,6 +8,7 @@
         "start": "npx @hexlet/react-todo-app-with-backend",
         "test": "jest",
         "test:watch": "jest --watch",
+        "prettier": "prettier --write .",
         "lint": "eslint . --fix"
     },
     "dependencies": {

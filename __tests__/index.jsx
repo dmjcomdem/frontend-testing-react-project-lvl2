@@ -61,7 +61,15 @@ describe('TODO Application', () => {
             const task = faker.lorem.words();
             const state = {
                 ...initialState,
-                tasks: [{ id: 1, listId: 1, text: task, completed: false, touched: Date.now() }],
+                tasks: [
+                    {
+                        id: 1,
+                        listId: 1,
+                        text: task,
+                        completed: false,
+                        touched: Date.now(),
+                    },
+                ],
             };
             render(<App {...state} />);
 
@@ -78,7 +86,15 @@ describe('TODO Application', () => {
             const task = faker.lorem.words();
             const state = {
                 ...initialState,
-                tasks: [{ id: 1, listId: 1, text: task, completed: true, touched: Date.now() }],
+                tasks: [
+                    {
+                        id: 1,
+                        listId: 1,
+                        text: task,
+                        completed: true,
+                        touched: Date.now(),
+                    },
+                ],
             };
             render(<App {...state} />);
 
@@ -117,7 +133,15 @@ describe('TODO Application', () => {
             const taskForFirstList = faker.lorem.words();
             const state = {
                 ...initialState,
-                tasks: [{ id: 1, listId: 1, text: taskForFirstList, completed: false, touched: Date.now() }],
+                tasks: [
+                    {
+                        id: 1,
+                        listId: 1,
+                        text: taskForFirstList,
+                        completed: false,
+                        touched: Date.now(),
+                    },
+                ],
             };
             render(<App {...state} />);
             addList(listSecondName);
@@ -141,7 +165,10 @@ describe('TODO Application', () => {
         });
 
         it('should task states persist between lists switching', async () => {
-            const [taskForFirstList, taskForSecondList] = [faker.lorem.words(), faker.lorem.words()];
+            const [taskForFirstList, taskForSecondList] = [
+                faker.lorem.words(),
+                faker.lorem.words(),
+            ];
             const state = {
                 ...initialState,
                 currentListId: 2,
@@ -150,8 +177,20 @@ describe('TODO Application', () => {
                     { id: 2, name: 'second', removable: true },
                 ],
                 tasks: [
-                    { id: 1, listId: 1, text: taskForFirstList, completed: false, touched: Date.now() },
-                    { id: 2, listId: 2, text: taskForSecondList, completed: false, touched: Date.now() },
+                    {
+                        id: 1,
+                        listId: 1,
+                        text: taskForFirstList,
+                        completed: false,
+                        touched: Date.now(),
+                    },
+                    {
+                        id: 2,
+                        listId: 2,
+                        text: taskForSecondList,
+                        completed: false,
+                        touched: Date.now(),
+                    },
                 ],
             };
             render(<App {...state} />);
