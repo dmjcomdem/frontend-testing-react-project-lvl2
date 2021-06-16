@@ -8,6 +8,7 @@ module.exports = {
     'eslint:recommended',
     'plugin:react/recommended',
     'plugin:jest/recommended',
+    'prettier',
   ],
   plugins: ['react', 'jest', 'prettier'],
   parserOptions: {

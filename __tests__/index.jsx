@@ -2,8 +2,8 @@ import React from 'react';
 import App from '@hexlet/react-todo-app-with-backend';
 import { render, waitFor, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import server from '../mocks/server';
 import faker from 'faker';
+import server from '../mocks/server';
 
 // Initial State Application
 const initialState = {
