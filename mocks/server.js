@@ -11,7 +11,7 @@ export const initialState = {
 };
 
 const setServer = (initState = initialState) => {
-  let { lists = [], tasks = [] } = initState;
+  let { tasks = [] } = initState;
 
   return setupServer(
     rest.post('/api/v1/lists', (req, res, ctx) => {
@@ -34,12 +34,14 @@ const setServer = (initState = initialState) => {
         text: req.body.text,
         completed: false,
         touched: Date.now(),
-      };
+      }; // ?
+
+      tasks = [...tasks, task];
       return res(ctx.delay(), ctx.json(task));
     }),
 
     rest.patch('/api/v1/tasks/:id', (req, res, ctx) => {
-      const currentTask = tasks.find((task) => task.id === req.params.id); // ?
+      const currentTask = tasks.find((task) => task.id === req.params.id); // ? tasks
       const checkedTask = {
         ...currentTask,
         completed: req.body.completed,

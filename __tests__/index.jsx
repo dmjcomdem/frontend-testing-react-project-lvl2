@@ -14,7 +14,7 @@ import setServer, { initialState } from '../mocks/server';
 // Helpers
 const addTask = (task) => {
   userEvent.type(screen.getByRole('textbox', { name: /new task/i }), task);
-  userEvent.click(screen.getByRole('button', { name: 'Add', exact: true }));
+  userEvent.click(screen.getByRole('button', { name: 'Add' }));
   return screen.findByText(task);
 };
 
@@ -64,18 +64,20 @@ describe('TODO Application', () => {
       expect(button).not.toBeDisabled();
     });
 
-    // it('should checked completed task', async () => {
-    //   const taskText = faker.lorem.words();
-    //   const taskElement = await addTask(taskText);
-    //   const checkbox = screen.getByRole('checkbox', { name: taskText });
-    //
-    //   expect(taskElement).toBeInTheDocument();
-    //   expect(checkbox).not.toBeChecked();
-    //   userEvent.click(taskElement);
-    //   expect(checkbox).toBeDisabled();
-    //   await waitFor(() => expect(checkbox).toBeChecked());
-    //   // expect(checkbox).toBeEnabled();
-    // });
+    it('should checked completed task', async () => {
+      const taskText = faker.lorem.words();
+      const taskElement = await addTask(taskText);
+      const checkbox = screen.getByRole('checkbox', { name: taskText });
+
+      expect(taskElement).toBeInTheDocument();
+      expect(checkbox).not.toBeChecked();
+
+      userEvent.click(checkbox);
+
+      expect(checkbox).toBeDisabled();
+      await waitFor(() => expect(checkbox).toBeChecked());
+      expect(checkbox).toBeEnabled();
+    });
 
     it('should remove task', async () => {
       const taskText = faker.lorem.words();
