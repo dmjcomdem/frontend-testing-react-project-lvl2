@@ -34,7 +34,7 @@ const setServer = (initState = initialState) => {
         text: req.body.text,
         completed: false,
         touched: Date.now(),
-      }; // ?
+      };
 
       tasks = [...tasks, task];
       return res(ctx.delay(), ctx.json(task));
