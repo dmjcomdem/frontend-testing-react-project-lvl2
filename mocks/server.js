@@ -23,9 +23,9 @@ const setServer = (initState = initialState) => {
       return res(ctx.delay(), ctx.json(list));
     }),
 
-    rest.delete('/api/v1/lists/:id', (req, res, ctx) =>
-      res(ctx.delay(), ctx.status(204))
-    ),
+    rest.delete('/api/v1/lists/:id', (req, res, ctx) => {
+      res(ctx.delay(), ctx.status(204));
+    }),
 
     rest.post('/api/v1/lists/:id/tasks', (req, res, ctx) => {
       const task = {
@@ -47,7 +47,9 @@ const setServer = (initState = initialState) => {
         completed: req.body.completed,
         touched: Date.now(),
       };
-      tasks = tasks.map((task) => (task.id === req.params.id ? checkedTask : task));
+      tasks = tasks.map((task) =>
+        task.id === req.params.id ? checkedTask : task
+      );
 
       return res(ctx.delay(), ctx.json(checkedTask));
     }),
