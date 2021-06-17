@@ -54,8 +54,7 @@ const setServer = (initState = initialState) => {
       tasks = tasks.filter(({ id }) => id !== req.params.taskId);
 
       return res(ctx.delay(), ctx.status(204));
-    })
-
+    }),
   );
 };
 
