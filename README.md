@@ -8,4 +8,4 @@
 
 `npm test`
 
-[![asciicast](https://asciinema.org/a/419864.svg)](https://asciinema.org/a/419864)
+[![asciicast](https://asciinema.org/a/CoCORzqUId8CnSSF8G0xNM4Pz.svg)](https://asciinema.org/a/CoCORzqUId8CnSSF8G0xNM4Pz)
