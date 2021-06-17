@@ -25,7 +25,10 @@ const addList = (list) => {
   return screen.findByText(list);
 };
 
+// Messages
 const errorMessage = /network error/i;
+const requiredMessage = /required!/i;
+const alreadyExistsMessage = /already exists/i;
 
 describe('TODO Application', () => {
   let server;
@@ -94,9 +97,7 @@ describe('TODO Application', () => {
       it('should required message for add empty task name', async () => {
         userEvent.click(screen.getByRole('button', { name: 'Add' }));
 
-        await waitFor(() => {
-          expect(screen.queryByText(/required!/i)).toBeVisible();
-        });
+        expect(await screen.findByText(requiredMessage)).toBeVisible();
       });
 
       it('should error message for add exists task', async () => {
@@ -104,7 +105,7 @@ describe('TODO Application', () => {
         await addTask(taskText);
         await addTask(taskText);
 
-        expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
+        expect(await screen.findByText(alreadyExistsMessage)).toBeVisible();
       });
 
       it('should return error when add task with a status of 500', async () => {
@@ -128,9 +129,7 @@ describe('TODO Application', () => {
         const taskText = faker.lorem.words();
         userEvent.click(await addTask(taskText));
 
-        await waitFor(() => {
-          expect(screen.queryByText(errorMessage)).toBeVisible();
-        });
+        expect(await screen.findByText(errorMessage)).toBeVisible();
       });
 
       it('should return error when remove task with a status of 500', async () => {
@@ -141,9 +140,7 @@ describe('TODO Application', () => {
         const button = screen.getByRole('button', { name: 'Remove' });
         userEvent.click(button);
 
-        await waitFor(() => {
-          expect(screen.queryByText(errorMessage)).toBeVisible();
-        });
+        expect(await screen.findByText(errorMessage)).toBeVisible();
       });
     });
   });
@@ -206,9 +203,7 @@ describe('TODO Application', () => {
       it('should required message for add empty list name', async () => {
         userEvent.click(screen.getByRole('button', { name: /add list/i }));
 
-        await waitFor(() => {
-          expect(screen.queryByText(/required!/i)).toBeVisible();
-        });
+        expect(await screen.findByText(requiredMessage)).toBeVisible();
       });
 
       it('should error message for add exists list', async () => {
@@ -216,7 +211,7 @@ describe('TODO Application', () => {
         await addList(taskText);
         await addList(taskText);
 
-        expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
+        expect(screen.queryByText(alreadyExistsMessage)).toBeVisible();
       });
 
       it('should return error when add list with a status of 500', async () => {
@@ -239,9 +234,7 @@ describe('TODO Application', () => {
         const button = screen.getByRole('button', { name: /remove list/i });
         userEvent.click(button);
 
-        await waitFor(() => {
-          expect(screen.queryByText(errorMessage)).toBeVisible();
-        });
+        expect(await screen.findByText(errorMessage)).toBeVisible();
       });
     });
   });
