@@ -1,43 +1,61 @@
 import { rest } from 'msw';
+import { nanoid } from 'nanoid';
 import { setupServer } from 'msw/node';
 
-const server = setupServer(
-  // add new list
-  rest.post('/api/v1/lists', (req, res, ctx) => {
-    const list = { id: 2, name: req.body.name, removable: true };
-    return res(ctx.json(list));
-  }),
+const primaryListId = nanoid();
 
-  // delete list by id
-  rest.delete('/api/v1/lists/:id', (req, res, ctx) => res(ctx.status(204))),
+export const initialState = {
+  currentListId: primaryListId,
+  lists: [{ id: primaryListId, name: 'Primary', removable: false }],
+  tasks: [],
+};
 
-  // add task to list by id
-  rest.post('/api/v1/lists/:id/tasks', (req, res, ctx) => {
-    const task = {
-      id: 1,
-      listId: 1,
-      text: req.body.text,
-      completed: false,
-      touched: Date.now(),
-    };
+const setServer = (initState = initialState) => {
+  let { lists = [], tasks = [] } = initState;
 
-    return res(ctx.json(task));
-  }),
+  return setupServer(
+    rest.post('/api/v1/lists', (req, res, ctx) => {
+      const list = {
+        id: nanoid(),
+        name: req.body.name,
+        removable: true,
+      };
+      return res(ctx.delay(), ctx.json(list));
+    }),
 
-  // update task by id
-  rest.patch('/api/v1/tasks/:id', (req, res, ctx) => {
-    const task = {
-      id: 1,
-      listId: 1,
-      completed: req.body.completed,
-      touched: Date.now(),
-    };
+    rest.delete('/api/v1/lists/:id', (req, res, ctx) =>
+      res(ctx.delay(), ctx.status(204))
+    ),
 
-    return res(ctx.json(task));
-  }),
+    rest.post('/api/v1/lists/:id/tasks', (req, res, ctx) => {
+      const task = {
+        id: nanoid(),
+        listId: req.params.id,
+        text: req.body.text,
+        completed: false,
+        touched: Date.now(),
+      };
+      return res(ctx.delay(), ctx.json(task));
+    }),
 
-  // delete task by id
-  rest.delete('/api/v1/tasks/:id', (req, res, ctx) => res(ctx.status(204))),
-);
+    rest.patch('/api/v1/tasks/:id', (req, res, ctx) => {
+      const currentTask = tasks.find((task) => task.id === req.params.id); // ?
+      const checkedTask = {
+        ...currentTask,
+        completed: req.body.completed,
+        touched: Date.now(),
+      };
+      tasks = tasks.map((task) => (task.id === req.params.id ? checkedTask : task));
 
-export default server;
+      return res(ctx.delay(), ctx.json(checkedTask));
+    }),
+
+    rest.delete('/api/v1/tasks/:id', (req, res, ctx) => {
+      tasks = tasks.filter(({ id }) => id !== req.params.taskId);
+
+      return res(ctx.delay(), ctx.status(204));
+    })
+  );
+};
+
+export default setServer;

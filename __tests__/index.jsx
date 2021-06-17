@@ -1,213 +1,245 @@
 import React from 'react';
 import App from '@hexlet/react-todo-app-with-backend';
-import { render, waitFor, screen, within } from '@testing-library/react';
+import {
+  render,
+  waitFor,
+  screen,
+  waitForElementToBeRemoved,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import faker from 'faker';
-import server from '../mocks/server';
-
-// Initial State Application
-const initialState = {
-  currentListId: 1,
-  lists: [{ id: 1, name: 'primary', removable: false }],
-  tasks: [],
-};
+import { rest } from 'msw';
+import setServer, { initialState } from '../mocks/server';
 
 // Helpers
-const addList = (list) => {
-  userEvent.type(screen.getByRole('textbox', { name: /new list/i }), list);
-  userEvent.click(screen.getByRole('button', { name: /add list/i }));
-};
-
 const addTask = (task) => {
   userEvent.type(screen.getByRole('textbox', { name: /new task/i }), task);
-  const view = screen.getByTestId('task-form');
-  userEvent.click(within(view).getByRole('button', { name: /add/i }));
+  userEvent.click(screen.getByRole('button', { name: 'Add', exact: true }));
+  return screen.findByText(task);
 };
 
+const addList = (list) => {
+  const addButton = screen.getByRole('button', { name: /add list/i });
+  userEvent.type(screen.getByRole('textbox', { name: /new list/i }), list);
+  userEvent.click(addButton);
+  return screen.findByText(list);
+};
+
+const errorMessage = /network error/i;
+
 describe('TODO Application', () => {
-  beforeAll(() => {
-    server.listen();
+  let server;
+
+  beforeEach(async () => {
+    server = setServer(initialState);
+    render(<App {...initialState} />);
+    server.listen({ onUnhandledRequest: 'warn' });
   });
 
   afterEach(() => {
     server.resetHandlers();
-  });
-
-  afterAll(() => {
     server.close();
   });
 
   it('should correctly render start application', () => {
-    render(<App {...initialState} />);
-
     expect(screen.getByText('Hexlet Todos')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /new list/i })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /new task/i })).toBeInTheDocument();
-    expect(screen.getByText('primary')).toBeInTheDocument();
+    expect(screen.getByText('Primary')).toBeInTheDocument();
     expect(screen.getByText('Tasks list is empty')).toBeInTheDocument();
   });
 
-  describe('correctly render tasks in primary list', () => {
-    it('should add task in primary list', async () => {
-      const task = faker.lorem.words();
-      render(<App {...initialState} />);
-      addTask(task);
-      const taskBox = await screen.findByRole('checkbox', task);
+  describe('correctly render tasks', () => {
+    it('should add task', async () => {
+      const taskText = faker.lorem.words();
+      const input = screen.getByRole('textbox', { name: /new task/i });
+      const button = screen.getByRole('button', { name: 'Add' });
+      userEvent.type(input, taskText);
+      userEvent.click(button);
 
-      expect(taskBox).toBeInTheDocument();
+      expect(input).toHaveAttribute('readonly');
+      expect(button).toBeDisabled();
+      expect(await screen.findByText(taskText)).toBeInTheDocument();
+      expect(input).not.toHaveAttribute('readonly');
+      expect(button).not.toBeDisabled();
     });
 
-    it('should checked completed task in primary list', async () => {
-      const task = faker.lorem.words();
-      const state = {
-        ...initialState,
-        tasks: [
-          {
-            id: 1,
-            listId: 1,
-            text: task,
-            completed: false,
-            touched: Date.now(),
-          },
-        ],
-      };
-      render(<App {...state} />);
+    // it('should checked completed task', async () => {
+    //   const taskText = faker.lorem.words();
+    //   const taskElement = await addTask(taskText);
+    //   const checkbox = screen.getByRole('checkbox', { name: taskText });
+    //
+    //   expect(taskElement).toBeInTheDocument();
+    //   expect(checkbox).not.toBeChecked();
+    //   userEvent.click(taskElement);
+    //   expect(checkbox).toBeDisabled();
+    //   await waitFor(() => expect(checkbox).toBeChecked());
+    //   // expect(checkbox).toBeEnabled();
+    // });
 
-      expect(await screen.findByText(task)).toBeVisible();
-      const taskBox = await screen.findByRole('checkbox', task);
-      userEvent.click(taskBox);
+    it('should remove task', async () => {
+      const taskText = faker.lorem.words();
+      const taskElement = await addTask(taskText);
+      const button = screen.getByRole('button', { name: 'Remove' });
+      userEvent.click(button);
 
-      await waitFor(() => {
-        expect(taskBox).toBeChecked();
+      expect(button).toBeDisabled();
+      await waitForElementToBeRemoved(taskElement);
+      expect(taskElement).not.toBeInTheDocument();
+    });
+
+    describe('error handler', () => {
+      it('should required message for add empty task name', async () => {
+        userEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+        await waitFor(() => {
+          expect(screen.queryByText(/required!/i)).toBeVisible();
+        });
       });
-    });
 
-    it('should remove task in primary list', async () => {
-      const task = faker.lorem.words();
-      const state = {
-        ...initialState,
-        tasks: [
-          {
-            id: 1,
-            listId: 1,
-            text: task,
-            completed: true,
-            touched: Date.now(),
-          },
-        ],
-      };
-      render(<App {...state} />);
+      it('should error message for add exists task', async () => {
+        const taskText = faker.lorem.words();
+        await addTask(taskText);
+        await addTask(taskText);
 
-      expect(await screen.findByText(task)).toBeVisible();
-      userEvent.click(screen.getByRole('button', { name: /remove/i }));
-
-      await waitFor(() => {
-        expect(screen.queryByText(task)).toBeNull();
+        expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
       });
-    });
 
-    it('should required message for add empty task name', async () => {
-      render(<App {...initialState} />);
-      addTask('');
+      it('should return error when add task with a status of 500', async () => {
+        server.use(
+          rest.post('/api/v1/lists/:id/tasks', (req, res, ctx) => res(ctx.status(500)))
+        );
+        const taskText = faker.lorem.words();
+        userEvent.type(screen.getByRole('textbox', { name: /new task/i }), taskText);
+        userEvent.click(screen.getByRole('button', { name: 'Add' }));
 
-      await waitFor(() => {
-        expect(screen.getByText(/required!/i)).toBeInTheDocument();
+        await waitFor(() => {
+          expect(screen.queryByText(taskText)).not.toBeInTheDocument();
+          expect(screen.queryByText(errorMessage)).toBeVisible();
+        });
       });
-    });
 
-    it('should error message for add exists task', async () => {
-      const task = faker.lorem.words();
-      render(<App {...initialState} />);
-      addTask(task);
+      it('should return error when checkbox task with a status of 500', async () => {
+        server.use(
+          rest.patch('/api/v1/tasks/:id', (req, res, ctx) => res(ctx.status(500)))
+        );
+        const taskText = faker.lorem.words();
+        userEvent.click(await addTask(taskText));
 
-      await waitFor(() => {
-        addTask(task);
-        expect(screen.getByText(/already exists/i)).toBeInTheDocument();
+        await waitFor(() => {
+          expect(screen.queryByText(errorMessage)).toBeVisible();
+        });
+      });
+
+      it('should return error when remove task with a status of 500', async () => {
+        server.use(
+          rest.delete('/api/v1/tasks/:id', (req, res, ctx) => res(ctx.status(500)))
+        );
+        await addTask(faker.lorem.words());
+        const button = screen.getByRole('button', { name: 'Remove' });
+        userEvent.click(button);
+
+        await waitFor(() => {
+          expect(screen.queryByText(errorMessage)).toBeVisible();
+        });
       });
     });
   });
 
   describe('correctly render list', () => {
-    it('should create a new list and make it active', async () => {
-      const listSecondName = faker.lorem.words();
-      const taskForFirstList = faker.lorem.words();
-      const state = {
-        ...initialState,
-        tasks: [
-          {
-            id: 1,
-            listId: 1,
-            text: taskForFirstList,
-            completed: false,
-            touched: Date.now(),
-          },
-        ],
-      };
-      render(<App {...state} />);
-      addList(listSecondName);
+    it('should create a new list', async () => {
+      const listName = faker.lorem.words();
+      const input = screen.getByRole('textbox', { name: /new list/i });
+      const button = screen.getByRole('button', { name: /add list/i });
+      userEvent.type(input, listName);
+      userEvent.click(button);
 
-      const list = await screen.findByRole('button', { name: listSecondName });
-      expect(list).toBeInTheDocument();
-      expect(screen.getByText('Tasks list is empty')).toBeInTheDocument();
+      expect(input).toHaveAttribute('readonly');
+      expect(button).toBeDisabled();
+      expect(await screen.findByText(listName)).toBeInTheDocument();
+      expect(input).not.toHaveAttribute('readonly');
+      expect(button).not.toBeDisabled();
+    });
+
+    it('should create a new list and make it active', async () => {
+      const taskInFirstList = await addTask(faker.lorem.words());
+      const secondList = await addList(faker.lorem.words());
+
+      expect(taskInFirstList).not.toBeInTheDocument();
+      expect(secondList).toBeInTheDocument();
     });
 
     it('should remove list', async () => {
-      const list = faker.lorem.words();
-      render(<App {...initialState} />);
-      addList(list);
+      const listName = faker.lorem.words();
+      const listElement = await addList(listName);
+      const button = screen.getByRole('button', { name: /remove list/i });
 
-      expect(await screen.findByText(list)).toBeVisible();
-      userEvent.click(screen.getByRole('button', { name: /remove list/i }));
-
-      await waitFor(() => {
-        expect(screen.queryByText(list)).toBeNull();
-      });
+      expect(listElement).toBeInTheDocument();
+      userEvent.click(button);
+      expect(button).toBeDisabled();
+      await waitForElementToBeRemoved(listElement);
+      expect(listElement).not.toBeInTheDocument();
     });
 
     it('should task states persist between lists switching', async () => {
-      const [taskForFirstList, taskForSecondList] = [
+      const [firstListName, secondListName] = ['Primary', 'Second'];
+      const [taskFirstListText, taskSecondListText] = [
         faker.lorem.words(),
         faker.lorem.words(),
       ];
-      const state = {
-        ...initialState,
-        currentListId: 2,
-        lists: [
-          { id: 1, name: 'primary', removable: false },
-          { id: 2, name: 'second', removable: true },
-        ],
-        tasks: [
-          {
-            id: 1,
-            listId: 1,
-            text: taskForFirstList,
-            completed: false,
-            touched: Date.now(),
-          },
-          {
-            id: 2,
-            listId: 2,
-            text: taskForSecondList,
-            completed: false,
-            touched: Date.now(),
-          },
-        ],
-      };
-      render(<App {...state} />);
 
-      expect(await screen.findByText(taskForSecondList)).toBeInTheDocument();
-      userEvent.click(screen.getByRole('button', { name: /primary/i }));
-      expect(await screen.findByText(taskForFirstList)).toBeInTheDocument();
+      const firstList = screen.getByRole('button', { name: firstListName });
+      const taskFirstList = await addTask(taskFirstListText);
+      expect(taskFirstList).toBeInTheDocument();
+
+      await addList(secondListName);
+      const taskSecondList = await addTask(taskSecondListText);
+      expect(taskFirstList).not.toBeInTheDocument();
+      expect(taskSecondList).toBeInTheDocument();
+      userEvent.click(firstList);
+      expect(screen.getByText(taskFirstListText)).toBeInTheDocument();
     });
 
-    it('should error message for add exists list', async () => {
-      const list = faker.lorem.words();
-      render(<App {...initialState} />);
-      addList(list);
+    describe('error handler', () => {
+      it('should required message for add empty list name', async () => {
+        userEvent.click(screen.getByRole('button', { name: /add list/i }));
 
-      await waitFor(() => {
-        addList(list);
-        expect(screen.getByText(/already exists/i)).toBeInTheDocument();
+        await waitFor(() => {
+          expect(screen.queryByText(/required!/i)).toBeVisible();
+        });
+      });
+
+      it('should error message for add exists list', async () => {
+        const taskText = faker.lorem.words();
+        await addList(taskText);
+        await addList(taskText);
+
+        expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
+      });
+
+      it('should return error when add list with a status of 500', async () => {
+        server.use(rest.post('/api/v1/lists', (req, res, ctx) => res(ctx.status(500))));
+        const listText = faker.lorem.words();
+        userEvent.type(screen.getByRole('textbox', { name: /new list/i }), listText);
+        userEvent.click(screen.getByRole('button', { name: 'add list' }));
+
+        await waitFor(() => {
+          expect(screen.queryByText(listText)).not.toBeInTheDocument();
+          expect(screen.queryByText(errorMessage)).toBeVisible();
+        });
+      });
+
+      it('should return error when remove list with a status of 500', async () => {
+        server.use(
+          rest.delete('/api/v1/lists/:id', (req, res, ctx) => res(ctx.status(500)))
+        );
+        await addList(faker.lorem.words());
+        const button = screen.getByRole('button', { name: /remove list/i });
+        userEvent.click(button);
+
+        await waitFor(() => {
+          expect(screen.queryByText(errorMessage)).toBeVisible();
+        });
       });
     });
   });
